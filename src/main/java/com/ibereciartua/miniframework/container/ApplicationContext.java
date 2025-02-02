@@ -2,6 +2,7 @@ package com.ibereciartua.miniframework.container;
 
 import com.ibereciartua.miniframework.annotations.Autowired;
 import com.ibereciartua.miniframework.annotations.Component;
+import com.ibereciartua.miniframework.annotations.PostConstruct;
 import com.ibereciartua.miniframework.utils.ClassPathScanner;
 
 import java.lang.reflect.InvocationTargetException;
@@ -24,6 +25,7 @@ public class ApplicationContext {
             // Step2: Inject dependencies
             for(Object bean : beanMap.values()) {
                 injectDependencies(bean);
+                invokePostConstructMethods(bean);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -38,6 +40,21 @@ public class ApplicationContext {
                     field.set(bean, beanMap.get(field.getType()));
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private void invokePostConstructMethods(final Object bean) {
+        for (var method: bean.getClass().getMethods()) {
+            if (method.isAnnotationPresent(PostConstruct.class)) {
+                if (method.getParameters().length > 0) {
+                    throw new RuntimeException("Method annotated with @PostConstruct must not have parameters: " + method);
+                }
+                try {
+                    method.invoke(bean);
+                } catch (IllegalAccessException | InvocationTargetException e) {
+                    throw new RuntimeException("Error invoking @PostConstruct method: " + method, e);
                 }
             }
         }
