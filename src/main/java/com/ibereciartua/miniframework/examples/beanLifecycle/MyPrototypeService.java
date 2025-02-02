@@ -1,4 +1,4 @@
-package com.ibereciartua.miniframework.examples;
+package com.ibereciartua.miniframework.examples.beanLifecycle;
 
 import com.ibereciartua.miniframework.annotations.Component;
 import com.ibereciartua.miniframework.annotations.PostConstruct;

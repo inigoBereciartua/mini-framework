@@ -4,6 +4,7 @@ import com.ibereciartua.miniframework.annotations.*;
 import com.ibereciartua.miniframework.utils.ClassPathScanner;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -20,7 +21,7 @@ public class ApplicationContext {
             for(Class<?> clazz : classes) {
                 Scope scope = clazz.getAnnotation(Scope.class);
                 if (scope != null && "singleton".equals(scope.value())) {
-                    Object instance = clazz.getDeclaredConstructor().newInstance();
+                    Object instance = getBean(clazz);
                     singletonBeans.put(clazz, instance);
                 } else {
                     prototypeBeans.put(clazz, clazz);
@@ -92,17 +93,65 @@ public class ApplicationContext {
     }
 
     public <T> T getBean(final Class<T> clazz) {
-        if (singletonBeans.containsKey(clazz)) {
-            return clazz.cast(singletonBeans.get(clazz));
-        } else {
-            try {
-                T instance = clazz.cast(prototypeBeans.get(clazz).getDeclaredConstructor().newInstance());
-                injectDependencies(instance);
-                invokePostConstructMethods(instance);
-                return (T) instance;
-            } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-                throw new RuntimeException("Error creating prototype bean: " + clazz, e);
+        if (clazz.isInterface()) {
+            return getInterfaceImplementation(clazz);
+        }
+        Scope scope = clazz.getAnnotation(Scope.class);
+        if (scope == null || "singleton".equals(scope.value())) {
+            if (singletonBeans.containsKey(clazz)) {
+                return clazz.cast(singletonBeans.get(clazz));
+            } else {
+                return createBean(clazz);
             }
+        } else {
+            T instance = createBean(clazz);
+            injectDependencies(instance);
+            invokePostConstructMethods(instance);
+            return instance;
         }
     }
+
+    private <T> T getInterfaceImplementation(Class<T> clazz) {
+        // Find implementation for the interface
+        for (Map.Entry<Class<?>, Object> entry : singletonBeans.entrySet()) {
+            if (clazz.isAssignableFrom(entry.getKey())) {
+                return clazz.cast(entry.getValue());
+            }
+        }
+        for (Map.Entry<Class<?>, Class<?>> entry : prototypeBeans.entrySet()) {
+            if (clazz.isAssignableFrom(entry.getKey())) {
+                return createBean((Class<T>) entry.getKey());
+            }
+        }
+        throw new RuntimeException("No bean found for interface: " + clazz);
+    }
+
+    public static <T> T createBean(Class<T> clazz) {
+        if (clazz.isInterface()) {
+            throw new RuntimeException("Cannot instantiate an interface: " + clazz);
+        }
+        try {
+            T bean = clazz.getDeclaredConstructor().newInstance();
+
+            // Check if any method has @PreAuthorize or @PostAuthorize
+            boolean hasSecurityAnnotations = Arrays.stream(bean.getClass().getMethods())
+                    .anyMatch(method -> method.isAnnotationPresent(PreAuthorize.class)
+                            || method.isAnnotationPresent(PostAuthorize.class));
+
+            if (hasSecurityAnnotations) {
+                Class<?>[] interfaces = clazz.getInterfaces();
+                if (interfaces.length > 0) {
+                    // For simplicity, use the first interface as the proxy interface
+                    bean = SecurityInvocationHandler.createProxy(bean, (Class<T>) interfaces[0]);
+                } else {
+                    System.out.println("Warning: " + clazz.getName() + " does not implement any interfaces. Skipping proxy creation.");
+                }
+            }
+            return bean;
+        } catch (InstantiationException | IllegalAccessException
+                 | InvocationTargetException | NoSuchMethodException e) {
+            throw new RuntimeException("Error creating bean: " + clazz, e);
+        }
+    }
+
 }
