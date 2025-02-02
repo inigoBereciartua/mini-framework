@@ -1,9 +1,6 @@
 package com.ibereciartua.miniframework.container;
 
-import com.ibereciartua.miniframework.annotations.Autowired;
-import com.ibereciartua.miniframework.annotations.Component;
-import com.ibereciartua.miniframework.annotations.PostConstruct;
-import com.ibereciartua.miniframework.annotations.PreDestroy;
+import com.ibereciartua.miniframework.annotations.*;
 import com.ibereciartua.miniframework.utils.ClassPathScanner;
 
 import java.lang.reflect.InvocationTargetException;
@@ -13,18 +10,24 @@ import java.util.Set;
 
 public class ApplicationContext {
 
-    private final Map<Class<?>, Object> beanMap = new HashMap<>();
+    private final Map<Class<?>, Object> singletonBeans = new HashMap<>();
+    private final Map<Class<?>, Class<?>> prototypeBeans = new HashMap<>();
 
     public ApplicationContext(final String basePackage) {
         try {
             // Step 1: Scan the package and instantiate beans.
             Set<Class<?>> classes = ClassPathScanner.findClassesWithAnnotation(basePackage, Component.class);
             for(Class<?> clazz : classes) {
-                Object instance = clazz.getDeclaredConstructor().newInstance();
-                beanMap.put(clazz, instance);
+                Scope scope = clazz.getAnnotation(Scope.class);
+                if (scope != null && "singleton".equals(scope.value())) {
+                    Object instance = clazz.getDeclaredConstructor().newInstance();
+                    singletonBeans.put(clazz, instance);
+                } else {
+                    prototypeBeans.put(clazz, clazz);
+                }
             }
             // Step 2: Inject dependencies
-            for(Object bean : beanMap.values()) {
+            for(Object bean : singletonBeans.values()) {
                 injectDependencies(bean);
                 invokePostConstructMethods(bean);
             }
@@ -41,7 +44,7 @@ public class ApplicationContext {
      * This method should be called when the application is shutting down.
      */
     public void close() {
-        for (Object bean : beanMap.values()) {
+        for (Object bean : singletonBeans.values()) {
             invokePreDestroyMethods(bean);
         }
     }
@@ -50,7 +53,8 @@ public class ApplicationContext {
         for (var field : bean.getClass().getFields()) {
             if (field.isAnnotationPresent(Autowired.class)) {
                 try {
-                    field.set(bean, beanMap.get(field.getType()));
+                    Object dependency = getBean(field.getType());
+                    field.set(bean, dependency);
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
                 }
@@ -87,7 +91,18 @@ public class ApplicationContext {
         }
     }
 
-    public <T> T getBean(Class<T> clazz) {
-        return clazz.cast(beanMap.get(clazz));
+    public <T> T getBean(final Class<T> clazz) {
+        if (singletonBeans.containsKey(clazz)) {
+            return clazz.cast(singletonBeans.get(clazz));
+        } else {
+            try {
+                T instance = clazz.cast(prototypeBeans.get(clazz).getDeclaredConstructor().newInstance());
+                injectDependencies(instance);
+                invokePostConstructMethods(instance);
+                return (T) instance;
+            } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                throw new RuntimeException("Error creating prototype bean: " + clazz, e);
+            }
+        }
     }
 }
