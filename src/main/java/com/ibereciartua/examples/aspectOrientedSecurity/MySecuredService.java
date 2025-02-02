@@ -1,4 +1,4 @@
-package com.ibereciartua.miniframework.examples.aspectOrientedSecurity;
+package com.ibereciartua.examples.aspectOrientedSecurity;
 
 public interface MySecuredService {
     String secureMethod(String input);

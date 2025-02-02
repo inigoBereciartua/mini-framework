@@ -1,4 +1,4 @@
-package com.ibereciartua.miniframework.container;
+package com.ibereciartua.miniframework.aop;
 
 import com.ibereciartua.miniframework.annotations.PreAuthorize;
 

@@ -1,19 +1,16 @@
-package com.ibereciartua.miniframework.examples.beanLifecycle;
+package com.ibereciartua.examples.aspectOrientedSecurity;
 
 import com.ibereciartua.miniframework.annotations.Autowired;
 import com.ibereciartua.miniframework.annotations.Component;
 import com.ibereciartua.miniframework.annotations.Scope;
 
 @Component
-@Scope()
+@Scope
 public class MyController {
-
     @Autowired
-    public MyService myService;
-    @Autowired
-    public MyPrototypeService myPrototypeService;
+    public MySecuredService mySecuredService;
 
     public void sayHello() {
-        myService.sayHello();
+        System.out.println(mySecuredService.secureMethod("Hello"));
     }
 }

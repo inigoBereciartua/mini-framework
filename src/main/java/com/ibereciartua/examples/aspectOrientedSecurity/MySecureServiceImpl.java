@@ -1,4 +1,4 @@
-package com.ibereciartua.miniframework.examples.aspectOrientedSecurity;
+package com.ibereciartua.examples.aspectOrientedSecurity;
 
 import com.ibereciartua.miniframework.annotations.Component;
 import com.ibereciartua.miniframework.annotations.PostAuthorize;

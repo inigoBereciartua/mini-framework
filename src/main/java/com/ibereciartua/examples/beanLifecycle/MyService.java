@@ -1,11 +1,10 @@
-package com.ibereciartua.miniframework.examples.beanLifecycle;
+package com.ibereciartua.examples.beanLifecycle;
 
 import com.ibereciartua.miniframework.annotations.Autowired;
 import com.ibereciartua.miniframework.annotations.Component;
 import com.ibereciartua.miniframework.annotations.PostConstruct;
 import com.ibereciartua.miniframework.annotations.PreDestroy;
 import com.ibereciartua.miniframework.annotations.Scope;
-import com.ibereciartua.miniframework.examples.beanLifecycle.MyPrototypeService;
 
 @Component
 @Scope()

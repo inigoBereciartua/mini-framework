@@ -1,6 +1,7 @@
-package com.ibereciartua.miniframework.container;
+package com.ibereciartua.miniframework;
 
 import com.ibereciartua.miniframework.annotations.*;
+import com.ibereciartua.miniframework.aop.SecurityInvocationHandler;
 import com.ibereciartua.miniframework.utils.ClassPathScanner;
 
 import java.lang.reflect.InvocationTargetException;
