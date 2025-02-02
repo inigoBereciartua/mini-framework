@@ -1,11 +1,13 @@
 package com.ibereciartua.miniframework;
 
-import com.ibereciartua.miniframework.annotations.*;
-import com.ibereciartua.miniframework.aop.SecurityInvocationHandler;
+import com.ibereciartua.miniframework.annotations.Autowired;
+import com.ibereciartua.miniframework.annotations.Component;
+import com.ibereciartua.miniframework.annotations.PostConstruct;
+import com.ibereciartua.miniframework.annotations.PreDestroy;
+import com.ibereciartua.miniframework.annotations.Scope;
 import com.ibereciartua.miniframework.utils.ClassPathScanner;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -102,10 +104,10 @@ public class ApplicationContext {
             if (singletonBeans.containsKey(clazz)) {
                 return clazz.cast(singletonBeans.get(clazz));
             } else {
-                return createBean(clazz);
+                return BeanFactory.createBean(clazz);
             }
         } else {
-            T instance = createBean(clazz);
+            T instance = BeanFactory.createBean(clazz);
             injectDependencies(instance);
             invokePostConstructMethods(instance);
             return instance;
@@ -121,38 +123,11 @@ public class ApplicationContext {
         }
         for (Map.Entry<Class<?>, Class<?>> entry : prototypeBeans.entrySet()) {
             if (clazz.isAssignableFrom(entry.getKey())) {
-                return createBean((Class<T>) entry.getKey());
+                return BeanFactory.createBean((Class<T>) entry.getKey());
             }
         }
         throw new RuntimeException("No bean found for interface: " + clazz);
     }
 
-    public static <T> T createBean(Class<T> clazz) {
-        if (clazz.isInterface()) {
-            throw new RuntimeException("Cannot instantiate an interface: " + clazz);
-        }
-        try {
-            T bean = clazz.getDeclaredConstructor().newInstance();
-
-            // Check if any method has @PreAuthorize or @PostAuthorize
-            boolean hasSecurityAnnotations = Arrays.stream(bean.getClass().getMethods())
-                    .anyMatch(method -> method.isAnnotationPresent(PreAuthorize.class)
-                            || method.isAnnotationPresent(PostAuthorize.class));
-
-            if (hasSecurityAnnotations) {
-                Class<?>[] interfaces = clazz.getInterfaces();
-                if (interfaces.length > 0) {
-                    // For simplicity, use the first interface as the proxy interface
-                    bean = SecurityInvocationHandler.createProxy(bean, (Class<T>) interfaces[0]);
-                } else {
-                    System.out.println("Warning: " + clazz.getName() + " does not implement any interfaces. Skipping proxy creation.");
-                }
-            }
-            return bean;
-        } catch (InstantiationException | IllegalAccessException
-                 | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException("Error creating bean: " + clazz, e);
-        }
-    }
 
 }
